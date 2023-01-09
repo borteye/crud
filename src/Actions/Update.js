@@ -1,14 +1,10 @@
 import React, { useState } from "react";
 import "./Update.css";
 
-function Update(props) {
-  const fName = props.updateFname;
-  const lName = props.updateLname;
-  const aage = props.updateAge;
-
-  const [firstName, setFirstName] = useState(`${fName}`);
-  const [lastName, setLastName] = useState(`${lName}`);
-  const [age, setAge] = useState(`${aage}`);
+function Update({ updateFunction, oldfirstName, oldlastName, oldAge }) {
+  const [firstName, setFirstName] = useState(oldfirstName);
+  const [lastName, setLastName] = useState(oldlastName);
+  const [age, setAge] = useState(oldAge);
 
   return (
     <>
@@ -50,7 +46,7 @@ function Update(props) {
               <button
                 onClick={() => {
                   const text = firstName + " " + lastName + " " + age;
-                  props.updateDismiss(text, props.index);
+                  updateFunction(text);
                 }}
               >
                 Update
@@ -64,3 +60,5 @@ function Update(props) {
 }
 
 export default Update;
+
+//delete single document using react-firebase-hooks?

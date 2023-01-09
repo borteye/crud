@@ -1,8 +1,12 @@
+import React from "react";
 import "./App.css";
-import React, { useState } from "react";
+import { useState } from "react";
 import Update from "./Actions/Update";
+import db from "./FirebaseConfig";
+import firebase from "firebase/compat/app"; //import firebase
 import Search from "./Components/Search";
-import { db } from "./FirebaseConfig";
+import { useCollection, useDocument } from "react-firebase-hooks/firestore"; // imported firestore hooks
+
 import {
   collection,
   addDoc,
@@ -14,86 +18,88 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-function App() {
+const App = () => {
   const [firstName, setfirstName] = useState("");
   const [lastName, setlastName] = useState("");
   const [age, setAge] = useState(0);
-  const [updateFname, setUpdateFname] = useState("");
-  const [updateLname, setUpdateLname] = useState("");
-  const [updateAge, setUpdateAge] = useState();
-  const [preview, setPreview] = useState([]);
-  const [updateData, setUpdateData] = useState("");
+  const [oldfirstName, setOldFirstName] = useState("");
+  const [oldlastName, setOldLastName] = useState("");
+  const [oldAge, setOldAge] = useState();
+  const [docID, setDocID] = useState("");
   const [showDialog, setshowDialog] = useState(false);
-  const [dialogData, setdialogData] = useState("");
-  const [dialogCurrentIndex, setdialogCurrentIndex] = useState("");
+
   const [search, setSearch] = useState("");
 
   const addFunction = () => {
     if (firstName === "") {
-      return;
+      return false;
     }
-    const colRef = collection(db, "users");
-    addDoc(colRef, {
+
+    //adding data to firestore
+    db.collection("users").add({
       firstname: firstName,
       lastname: lastName,
       Age: age,
-    });
-
-    onSnapshot(colRef, (snapshot) => {
-      setPreview(snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(), //This is the time the data is recorded. So we order the data according to timestamp
     });
 
     setfirstName("");
     setlastName("");
     setAge(0);
   };
-  const updateFunction = (id) => {
-    const docRef = doc(db, "users", id);
-    onSnapshot(docRef, (doc) => {
-      const info = doc.data();
-      console.log(info);
-      setUpdateFname(info.firstname);
-      setUpdateLname(info.lastname);
-      setUpdateAge(info.Age);
-    });
-    console.log(updateData);
+
+  const [preview, loading, error] = useCollection(
+    db.collection("users").orderBy("timestamp", "desc")
+  ); // preview is users - so we're going to map on it.
+  // loading represents the time it takes to fecth the data
+  // error if there one
+
+  const ShowUpdateForm = async (id) => {
+    //editing data
+
+    const result = await db.collection("users").doc(id).get();
+    const data = result.data();
+    setOldFirstName(data.firstname);
+    setOldLastName(data.lastname);
+    setOldAge(data.Age);
+    setDocID(id);
     setshowDialog(true);
   };
 
-  const updateDismissFunction = (data, index) => {
-    const myList = preview;
-    myList[index] = data;
-    setPreview(myList);
-    console.log(myList);
-    setfirstName("");
+  const updateFunction = (text) => {
+    var extract = text.split(" ");
+
+    db.collection("users").doc(docID).set(
+      {
+        firstname: extract[0],
+        lastname: extract[1],
+        Age: extract[2],
+      },
+      { merge: true }
+    );
     setshowDialog(false);
   };
 
-  const deleteFunction = (id) => {
-    const docRef = doc(db, "users", id);
-
-    deleteDoc(docRef);
+  const deleteFunction = async (id) => {
+    await db.collection("users").doc(id).delete();
   };
 
-  function RowWidget({ data }) {
+  function RowWidget({ data, id }) {
     var username = "";
-    // var age = "";
-    // var extract = data.split(" ");
     username = data.firstname + " " + data.lastname;
-    // age = extract[2];
 
     return (
       <div className="row-two">
         <div className="data">{username}</div>
         <div className="data">{data.Age}</div>
         <div className="data">
-          <button className="update" onClick={() => updateFunction(data.id)}>
+          <button className="update" onClick={() => ShowUpdateForm(id)}>
             Update
           </button>
           <button
             className="delete"
             onClick={() => {
-              deleteFunction(data.id);
+              deleteFunction(id);
             }}
           >
             Delete
@@ -107,12 +113,10 @@ function App() {
     <>
       {showDialog ? (
         <Update
-          updateFname={updateFname}
-          updateLname={updateLname}
-          updateAge={updateAge}
-          data={dialogData}
-          index={dialogCurrentIndex}
-          updateDismiss={updateDismissFunction}
+          updateFunction={updateFunction}
+          oldfirstName={oldfirstName}
+          oldlastName={oldlastName}
+          oldAge={oldAge}
         />
       ) : (
         <div></div>
@@ -161,17 +165,17 @@ function App() {
         </div>
 
         {/* { .filter((prev) => prev.toLowerCase().includes(search.toLowerCase()))} */}
-        {preview.map((data) => {
-          console.log(data.id);
+        {preview?.docs.map((doc) => {
+          // console.log("id:", doc?.id, "data:", doc?.data()); // here
           return (
             <>
-              <RowWidget data={data} />
+              <RowWidget data={doc?.data()} id={doc?.id} />
             </>
           );
         })}
       </div>
     </>
   );
-}
+};
 
 export default App;
